@@ -72,7 +72,7 @@ getMinMaxValue_test() ->
   Monitor3 = pollution:addValue("X", {{2018, 4, 6}, {19, 00, 00}}, "PM10", 50, Monitor2),
   Monitor4 = pollution:addValue("X", {{2018, 4, 7}, {19, 00, 00}}, "PM10", 60, Monitor3),
   Monitor5 = pollution:addValue("X", {{2018, 4, 7}, {16, 00, 00}}, "PM10", 10, Monitor4),
-  Monitor6 = pollution:addValue("X", {{2018, 4, 7}, {16, 00, 00}}, "PM10", 20, Monitor5),
+  Monitor6 = pollution:addValue("X", {{2018, 4, 8}, {16, 00, 00}}, "PM10", 20, Monitor5),
   Actual = pollution:getMinMaxValue("PM10",{50,18}, Monitor6),
   Expected = {10,60},
   ?assertEqual(Expected, Actual).

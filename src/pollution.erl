@@ -39,30 +39,18 @@ findStation(Station, [_ | T]) -> findStation(Station, T).
 %%addValue adds a a value to a station(being given coords or a station, date, type, value), returns updated monitor.
 addValue(_,_,_,_,[]) -> [];
 addValue(Station, {{Year, Month, Day},{Hour, Minutes, Seconds}}, Type, Value, Monitor) ->
-  case findStation(Station, Monitor) of
+  P = findStation(Station, Monitor),
+  case P of
     false -> {error, "Error: given station doesn't exist."};
-    _ -> addIt(Station, {{Year, Month, Day} ,{Hour, Minutes, Seconds}}, Type, Value, Monitor)
+    #station{measurements = M} -> case getMeasure({{Year, Month, Day},{Hour, Minutes, Seconds}}, Type, M) of
+                                    false -> [P#station{measurements = [#measure{date = {{Year, Month, Day},{Hour, Minutes, Seconds}},type = Type, value = Value}|M]}|lists:delete(P,Monitor)];
+                                    _ -> {error, "Error: given measurement already exist."}
+                                  end
   end.
-
-addIt(Station, {{Year, Month, Day}, {Hour, Minutes, Seconds}}, Type, Value, [#station{name = Station, measurements = M} = S | T]) ->
-  case getMeasure({{Year, Month, Day}, {Hour, Minutes, Seconds}}, Type, M) of
-    false -> [S#station{measurements = [#measure{date = {{Year, Month, Day}, {Hour, Minutes, Seconds}}, type = Type, value = Value} | M] }|T];
-    _ -> io:format("Error: given measurement already exist."),
-      [S|T]
-  end;
-addIt(Station, {{Year, Month, Day}, {Hour, Minutes, Seconds}}, Type, Value, [#station{coords = Station, measurements = M} = S | T]) ->
-  case getMeasure({{Year, Month, Day}, {Hour, Minutes, Seconds}}, Type, M) of
-    false -> [S#station{measurements = [#measure{date = {{Year, Month, Day}, {Hour, Minutes, Seconds}}, type = Type, value = Value} | M]} | T];
-    _ -> io:format("Error: given measurement already exist."),
-      [S|T]
-  end;
-addIt(Station, {{Year, Month, Day}, {Hour, Minutes, Seconds}}, Type, Value, [S | T]) ->
-  [S|addIt(Station, {{Year, Month, Day}, {Hour, Minutes, Seconds}}, Type, Value, T)].
-
 
 getMeasure(_,_, [] ) -> false;
 getMeasure({{Year, Month, Day} , {Hour, Minutes, Seconds}}, Type,
-    [#measure{date ={{Year, Month, Day} , {Hour, Minutes, Seconds}}, type = Type, value = V }| _]) -> V;
+    [#measure{date ={{Year, Month, Day} , {Hour, Minutes, Seconds}}, type = Type} = M| _]) -> M;
 getMeasure({{Year, Month, Day} , {Hour, Minutes, Seconds}}, Type, [_|T]) ->
   getMeasure({{Year, Month, Day} , {Hour, Minutes, Seconds}}, Type, T).
 
@@ -72,29 +60,11 @@ removeValue(_,_,_,[]) -> [];
 removeValue(Station, {{Year, Month, Day}, {Hour, Minutes, Seconds}}, Type, Monitor) ->
   case findStation(Station, Monitor) of
     false -> {error, "Error: given station doesn't exist."};
-    _ -> removeIt(Station, {{Year, Month, Day}, {Hour, Minutes, Seconds}}, Type, Monitor)
+    S =#station{measurements = MeasureList} -> case getMeasure({{Year, Month, Day},{Hour, Minutes, Seconds}}, Type, MeasureList) of
+                                        false -> {error, "Error: given measurement doesn't exist."};
+                                        Measure -> [S#station{measurements = lists:delete(Measure,MeasureList)}| lists:delete(S,Monitor)]
+                                      end
   end.
-
-
-removeIt(Station, {{Year, Month, Day} ,{ Hour, Minutes, Seconds}}, Type, [#station{name = Station, measurements = M } = S | T]) ->
-  case getMeasure({{Year, Month, Day}, {Hour, Minutes, Seconds}}, Type, M) of
-    false -> io:format("Error: given measurement doesn't exist."),
-      [S|T];
-    _ -> [S#station{measurements = remIt({{Year, Month, Day}, {Hour, Minutes, Seconds}}, Type,M) }|T]
-  end;
-removeIt(Station, {{Year, Month, Day}, {Hour, Minutes, Seconds}}, Type, [#station{coords = Station, measurements = M} = S | T]) ->
-  case getMeasure({{Year, Month, Day}, {Hour, Minutes, Seconds}}, Type, M) of
-    false -> [S#station{measurements = remIt({{Year, Month, Day}, {Hour, Minutes, Seconds}}, Type,M)} | T];
-    _ -> io:format("Error: given measurement already exist."),
-      [S|T]
-  end;
-removeIt(Station, {{Year, Month, Day}, {Hour, Minutes, Seconds}}, Type, [S | T]) ->
-  [S|removeIt(Station, {{Year, Month, Day}, {Hour, Minutes, Seconds}}, Type, T)].
-
-remIt({{Year, Month, Day}, {Hour, Minutes, Seconds}}, Type,
-    [#measure{date = {{Year, Month, Day}, {Hour, Minutes, Seconds}}, type = Type} | T]) -> T;
-remIt({{Year, Month, Day}, {Hour, Minutes, Seconds}}, Type, [_|T]) -> remIt({{Year, Month, Day}, {Hour, Minutes, Seconds}}, Type, T).
-
 
 %%getOneValue returns value of measurement of given type from given date and station
 
@@ -102,7 +72,10 @@ getOneValue(_, _, _, []) -> {error, "Error: No such station."};
 getOneValue(Station, {{Year, Month, Day}, {Hour, Minutes, Seconds}},Type, Monitor) ->
   case findStation(Station, Monitor) of
     false -> {error, "Error: No such station."};
-    #station{measurements = M} -> getMeasure({{Year, Month, Day} , {Hour, Minutes, Seconds}}, Type, M)
+    #station{measurements = M} -> case getMeasure({{Year, Month, Day} , {Hour, Minutes, Seconds}}, Type, M) of
+                                    false -> {error, "Error: given measurement doesn't exist."};
+                                    #measure{value = Value} -> Value
+                                  end
   end.
 
 
@@ -121,31 +94,21 @@ getMeanValue([#measure{value = Value}|T],Acc,Num) ->getMeanValue(T,Acc+Value,Num
 
 getDailyMean(_,_,[]) -> 0;
 getDailyMean({Year, Month, Day},Type, Monitor) ->
-  getMeanValue(getSmth(Type,{Year, Month, Day}, Monitor),0,0).
+  getMeanValue(getMeasurementList(Type,{Year, Month, Day}, Monitor),0,0).
 
 unfold([]) -> [];
 unfold([[]|T])->unfold(T);
-unfold([[H|RT]|T])-> [H|unfold([RT|T])].
+unfold([[H|RT]|T])-> [H|unfold([RT|T
+])].
 
-getSmth(Type,{Year, Month, Day}, Monitor) ->
-  lists:filter(fun (#measure{type = Type1,date = {Year1,Month1,Day1,_}}) ->
+getMeasurementList(Type,{Year, Month, Day}, Monitor) ->
+  lists:filter(fun (#measure{type = Type1,date = {{Year1,Month1,Day1},_}}) ->
     ((((Type1==Type) and (Year1==Year)) and (Month1==Month)) and (Day1==Day)) end,unfold(lists:map(fun (#station{measurements = M}) ->M  end, Monitor))).
 
-goThroughStations(_,_,[],_,0) -> 0;
-goThroughStations(_,_,[],Acc,Num) -> Acc/Num;
-goThroughStations(Type,{Year,Month,Day},[#station{measurements = M}|T],Acc,Num) ->
-  {Accum,Number} = goThroughMeasurements(Type,{Year,Month,Day},M,Acc,Num),
-  goThroughStations(Type,{Year,Month,Day},T,Acc+Accum,Num+Number).
-
-
-goThroughMeasurements(_,_,[],Acc,Num) -> {Acc,Num};
-goThroughMeasurements(Type, {Year,Month,Day}, [#measure{type = Type, date = {{Year,Month,Day},_}, value = Val} | T], Acc, Num) ->
-  goThroughMeasurements(Type, {Year,Month,Day}, T, Acc+Val, Num+1);
-goThroughMeasurements(Type, {Year,Month,Day}, [_|T],Acc,Num) -> goThroughMeasurements(Type, {Year,Month,Day}, T,Acc,Num).
-
 %%getMinMaxValue returns minimum and maximum value of a parameter of a given type on a given station (by coordinates).
+
 getMinMaxValue(_,_,[])-> {error, "No such station"};
-getMinMaxValue(Type, Station, Monitor) ->
+getMinMaxValue(Station, Type, Monitor) ->
   case findStation(Station,Monitor) of
     false -> {error, "No such station"};
     #station{measurements = M} -> findMinMax(lists:map(fun (#measure{value = Val}) -> Val end, lists:filter(fun (#measure{type = X}) ->X==Type  end, M)),{inf,'-inf'})
