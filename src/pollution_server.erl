@@ -12,9 +12,9 @@
 %% API
 -export([start/0,stop/0]).
 -export([init/0]).
--export([addStation/2,addValue/4,removeValue/3,getOneValue/3,getStationMean/2,getDailyMean/2,getMinMaxValue/2]).
+-export([addStation/2,addValue/4,removeValue/3,getOneValue/3,getStationMean/2,getDailyMean/2,getMinMaxValue/2,crash/0]).
 
-start() -> register(pollutionServer, spawn(pollution_server,init,[])).
+start() -> register(pollutionServer, spawn_link(pollution_server,init,[])).
 
 stop() -> pollutionServer ! stop.
 
@@ -65,7 +65,8 @@ loop(Monitor) ->
         {error, ErrMsg} -> Pid ! {reply, ErrMsg}, loop(Monitor);
         _ -> Pid ! {reply, P}, loop(Monitor)
       end;
-    stop -> ok
+    stop -> ok;
+    crash -> 2/0
 
   end.
 
@@ -83,3 +84,4 @@ getOneValue(Station, Datetime, Type) -> call(getOneValue, {Station, Datetime, Ty
 getStationMean(Station, Type) -> call(getStationMean, {Station, Type}).
 getDailyMean(Datetime, Type) -> call(getDailyMean, {Datetime, Type}).
 getMinMaxValue(Station, Type) -> call(getMinMaxValue, {Station, Type}).
+crash() -> pollutionServer ! crash.

@@ -98,8 +98,7 @@ getDailyMean({Year, Month, Day},Type, Monitor) ->
 
 unfold([]) -> [];
 unfold([[]|T])->unfold(T);
-unfold([[H|RT]|T])-> [H|unfold([RT|T
-])].
+unfold([[H|RT]|T])-> [H|unfold([RT|T])].
 
 getMeasurementList(Type,{Year, Month, Day}, Monitor) ->
   lists:filter(fun (#measure{type = Type1,date = {{Year1,Month1,Day1},_}}) ->
