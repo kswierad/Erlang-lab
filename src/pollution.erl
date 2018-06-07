@@ -37,7 +37,6 @@ findStation(Station, [#station{coords = Station} = S | _]) -> S;
 findStation(Station, [_ | T]) -> findStation(Station, T).
 
 %%addValue adds a a value to a station(being given coords or a station, date, type, value), returns updated monitor.
-addValue(_,_,_,_,[]) -> [];
 addValue(Station, {{Year, Month, Day},{Hour, Minutes, Seconds}}, Type, Value, Monitor) ->
   P = findStation(Station, Monitor),
   case P of
@@ -56,7 +55,6 @@ getMeasure({{Year, Month, Day} , {Hour, Minutes, Seconds}}, Type, [_|T]) ->
 
 %%removeValue removes measure from a station (coords/name, date, type), returns updated monitor;
 
-removeValue(_,_,_,[]) -> [];
 removeValue(Station, {{Year, Month, Day}, {Hour, Minutes, Seconds}}, Type, Monitor) ->
   case findStation(Station, Monitor) of
     false -> {error, "Error: given station doesn't exist."};
